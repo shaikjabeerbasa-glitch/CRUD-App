@@ -1,0 +1,27 @@
+{
+  "name": "crud-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "script.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "playwright test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shaikjabeerbasa-glitch/CRUD-App.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/shaikjabeerbasa-glitch/CRUD-App/issues"
+  },
+  "homepage": "https://github.com/shaikjabeerbasa-glitch/CRUD-App#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}
