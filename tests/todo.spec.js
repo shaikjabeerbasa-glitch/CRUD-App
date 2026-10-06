@@ -2,9 +2,14 @@ const { test, expect } = require('@playwright/test');
 
 const APP_URL = 'https://to-do-app-coral-six-53.vercel.app/';
 
+function getTaskRow(page, taskText) {
+  return page.getByRole('listitem').filter({ hasText: taskText });
+}
+
 async function addTask(page, taskText) {
-  await page.getByLabel('Task name').fill(taskText);
-  await page.getByRole('button', { name: /add task/i }).click();
+  const input = page.getByRole('textbox', { name: /task name/i });
+  await input.fill(taskText);
+  await page.getByRole('button', { name: /^add task$/i }).click();
 }
 
 test.describe('To-do app flow tests', () => {
@@ -17,9 +22,9 @@ test.describe('To-do app flow tests', () => {
   test('F1: user can add a valid task', async ({ page }) => {
     await addTask(page, 'Buy groceries');
 
-    await expect(page.getByText('Buy groceries')).toBeVisible();
+    await expect(getTaskRow(page, 'Buy groceries')).toBeVisible();
     await expect(page.locator('#task-count')).toHaveText('1 task');
-    await expect(page.getByLabel('Task name')).toHaveValue('');
+    await expect(page.getByRole('textbox', { name: /task name/i })).toHaveValue('');
   });
 
   test('F2: user can add multiple tasks and the counter updates', async ({ page }) => {
@@ -29,59 +34,62 @@ test.describe('To-do app flow tests', () => {
       await addTask(page, task);
     }
 
-    await expect(page.locator('.todo-item')).toHaveCount(3);
+    await expect(page.getByRole('listitem')).toHaveCount(3);
     await expect(page.locator('#task-count')).toHaveText('3 tasks');
   });
 
   test('F3: user can mark a task complete', async ({ page }) => {
     await addTask(page, 'Submit assignment');
 
-    const checkbox = page.locator('.todo-item input[type="checkbox"]').first();
-    await expect(checkbox).not.toBeChecked();
+    const row = getTaskRow(page, 'Submit assignment');
+    const checkbox = row.getByRole('checkbox');
 
+    await expect(checkbox).not.toBeChecked();
     await checkbox.check();
 
     await expect(checkbox).toBeChecked();
-    await expect(page.locator('.todo-item')).toHaveClass(/completed/);
+    await expect(row).toHaveClass(/completed/);
   });
 
   test('F4: user can edit an existing task', async ({ page }) => {
     await addTask(page, 'Read book');
 
-    await page.locator('.edit-btn').click();
-    const input = page.getByLabel('Task name');
+    const row = getTaskRow(page, 'Read book');
+    await row.getByRole('button', { name: /^edit$/i }).click();
 
-    await expect(page.getByRole('button', { name: /save task/i })).toBeVisible();
+    const input = page.getByRole('textbox', { name: /task name/i });
+    await expect(page.getByRole('button', { name: /^save task$/i })).toBeVisible();
     await input.fill('Read Python book');
-    await page.getByRole('button', { name: /save task/i }).click();
+    await page.getByRole('button', { name: /^save task$/i }).click();
 
-    await expect(page.getByText('Read Python book')).toBeVisible();
-    await expect(page.getByRole('button', { name: /add task/i })).toBeVisible();
+    await expect(getTaskRow(page, 'Read Python book')).toBeVisible();
+    await expect(page.getByRole('button', { name: /^add task$/i })).toBeVisible();
   });
 
   test('F5: user can delete a task', async ({ page }) => {
     await addTask(page, 'Delete me');
     await addTask(page, 'Keep me');
 
-    await page.locator('.delete-btn').first().click();
+    const latestTaskRow = page.getByRole('listitem').first();
+    await latestTaskRow.getByRole('button', { name: /^delete$/i }).click();
 
-    await expect(page.getByText('Keep me')).not.toBeVisible();
-    await expect(page.getByText('Delete me')).toBeVisible();
+    await expect(getTaskRow(page, 'Keep me')).not.toBeVisible();
+    await expect(getTaskRow(page, 'Delete me')).toBeVisible();
     await expect(page.locator('#task-count')).toHaveText('1 task');
   });
 
   test('F6: deleting the last task shows empty state', async ({ page }) => {
     await addTask(page, 'Only task');
 
-    await page.locator('.delete-btn').click();
+    await getTaskRow(page, 'Only task').getByRole('button', { name: /^delete$/i }).click();
 
     await expect(page.getByText('No tasks yet. Add one above!')).toBeVisible();
     await expect(page.locator('#task-count')).toHaveText('0 tasks');
   });
 
   test('F7: empty submissions are rejected', async ({ page }) => {
-    await page.getByLabel('Task name').fill('   ');
-    await page.getByRole('button', { name: /add task/i }).click();
+    await page.getByRole('textbox', { name: /task name/i }).fill('   ');
+    await page.getByRole('button', { name: /^add task$/i }).click();
 
     await expect(page.locator('#task-count')).toHaveText('0 tasks');
     await expect(page.getByText('No tasks yet. Add one above!')).toBeVisible();
@@ -93,20 +101,21 @@ test.describe('To-do app flow tests', () => {
 
     await page.reload();
 
-    await expect(page.getByText('Plan sprint')).toBeVisible();
-    await expect(page.getByText('Review pull request')).toBeVisible();
+    await expect(getTaskRow(page, 'Plan sprint')).toBeVisible();
+    await expect(getTaskRow(page, 'Review pull request')).toBeVisible();
     await expect(page.locator('#task-count')).toHaveText('2 tasks');
   });
 
   test('F9: user can edit and save a task without breaking list state', async ({ page }) => {
     await addTask(page, 'Buy groceries');
 
-    await page.locator('.edit-btn').click();
-    const input = page.getByLabel('Task name');
-    await input.fill('Buy groceries and milk');
-    await page.getByRole('button', { name: /save task/i }).click();
+    await getTaskRow(page, 'Buy groceries').getByRole('button', { name: /^edit$/i }).click();
 
-    await expect(page.getByText('Buy groceries and milk')).toBeVisible();
+    const input = page.getByRole('textbox', { name: /task name/i });
+    await input.fill('Buy groceries and milk');
+    await page.getByRole('button', { name: /^save task$/i }).click();
+
+    await expect(getTaskRow(page, 'Buy groceries and milk')).toBeVisible();
     await expect(page.locator('#task-count')).toHaveText('1 task');
   });
 
@@ -114,13 +123,14 @@ test.describe('To-do app flow tests', () => {
     await addTask(page, 'Draft email');
     await addTask(page, 'Book flight');
 
-    await page.locator('.edit-btn').first().click();
-    await page.getByLabel('Task name').fill('Draft follow-up email');
-    await page.getByRole('button', { name: /save task/i }).click();
+    const firstRow = page.getByRole('listitem').first();
+    await firstRow.getByRole('button', { name: /^edit$/i }).click();
+    await page.getByRole('textbox', { name: /task name/i }).fill('Draft follow-up email');
+    await page.getByRole('button', { name: /^save task$/i }).click();
 
-    await page.locator('.delete-btn').last().click();
+    await page.getByRole('listitem').last().getByRole('button', { name: /^delete$/i }).click();
 
-    await expect(page.getByText('Draft follow-up email')).toBeVisible();
+    await expect(getTaskRow(page, 'Draft follow-up email')).toBeVisible();
     await expect(page.locator('#task-count')).toHaveText('1 task');
   });
 });
